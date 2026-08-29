@@ -1,3 +1,5 @@
+> Note: This repository is used as a fork of the upstream Pulse-PPG project and is integrated together with the main project repository at https://github.com/vladBaciu/ppg-glucose-estimation for knowledge distillation and glucose prediction from PPG signals.
+
 # Pulse-PPG: An Open-Source Field-Trained PPG Foundation Model for Wearable Applications Across Lab and Field Settings
 Mithun Saha<sup>1,†</sup>, Maxwell A. Xu<sup>2,†</sup>, Wanting Mao<sup>2</sup>, Sameer Neupane<sup>1</sup>, James M. Rehg<sup>2</sup>, Santosh Kumar<sup>1</sup>
 
