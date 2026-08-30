@@ -5,6 +5,7 @@ from pulseppg.data.Base_Dataset import SSLDataConfig, SupervisedDataConfig
 
 from pulseppg.models.RelCon.RelCon_Model import RelCon_ModelConfig
 
+WAVELENGTHS = ["660", "730", "850", "940"]
 
 allpulseppg_expconfigs = {}
 
@@ -15,8 +16,8 @@ allpulseppg_expconfigs["pulseppg"] = RelCon_ModelConfig(
     motifdist_expconfig_key="motifdist",
 
     data_config=SSLDataConfig(
-        data_folder="/disk1/maxmithun/harmfulstressors/data/ppg_acc_np/",
-        data_normalizer_path = "/disk1/maxmithun/harmfulstressors/data/ppg_acc_np/dict_user_ppg_mean_std_per.pickle", 
+        data_folder="none",
+        data_normalizer_path = "none", 
         data_clipping = True, 
     ),
 
@@ -33,89 +34,16 @@ allpulseppg_expconfigs["pulseppg"] = RelCon_ModelConfig(
     ),
     epochs = 20, lr=0.0001, batch_size=16, save_epochfreq=1,
     eval_configs = [
-    ###########################################################################
-    ################### LINEAR PROBE EVAL CONFIGS #############################
-    ###########################################################################
-            Base_EvalConfig(
-                name="PPG-DaLiA | HR | Linear Probe",
-                model_folder="Regress",
-                model_file="linear_probe",
-                data_config=SupervisedDataConfig(
-                   data_folder="pulseppg/data/datasets/dalia/",
-                   X_annotates=["_ppg_50Hz"],
-                   y_annotate="_hr"
-                ),
+        Base_EvalConfig(
+            name=f"embeddings_output_ppg_glucose_50hz_{wl}nm",
+            model_folder="Regress",
+            model_file="linear_probe",
+            data_config=SupervisedDataConfig(
+                data_folder="pulseppg/data/datasets/Hb_PPG_Dataset/",
+                X_annotates=[f"_ppg_50Hz_{wl}nm"],
+                y_annotate=f"_glucose_{wl}nm",
             ),
-            Base_EvalConfig(
-                name="PPG-DaLiA | Activity | Linear Probe",
-                model_folder="Classify",
-                model_file="linear_probe",
-                data_config=SupervisedDataConfig(
-                   data_folder="pulseppg/data/datasets/dalia/",
-                   X_annotates=["_ppg_50Hz"],
-                   y_annotate="_act"
-                ),
-            ),
-            Base_EvalConfig(
-                name="WESAD | Stress (2) | Linear Probe",
-                model_folder="Classify",
-                model_file="linear_probe",
-                data_config=SupervisedDataConfig(
-                   data_folder="pulseppg/data/datasets/wesad/binary",
-                   X_annotates=["_ppg_50Hz"],
-                   y_annotate="_stress_50Hz"
-                ),
-            ),
-            Base_EvalConfig(
-                name="WESAD | Stress (4) | Linear Probe",
-                model_folder="Classify",
-                model_file="linear_probe",
-                data_config=SupervisedDataConfig(
-                   data_folder="pulseppg/data/datasets/wesad/multiclass",
-                   X_annotates=["_ppg_50Hz"],
-                   y_annotate="_stress_50Hz"
-                ),
-            ),
-            Base_EvalConfig(
-                name="SDB | Sleep | Linear Probe",
-                model_folder="Classify",
-                model_file="linear_probe",
-                data_config=SupervisedDataConfig(
-                   data_folder="pulseppg/data/datasets/sdb",
-                   X_annotates=["_ppg_50Hz"],
-                   y_annotate="_sdb"
-                ),
-            ),
-            Base_EvalConfig(
-                name="PPG-BP | Systolic BP | Linear Probe",
-                model_folder="Regress",
-                model_file="linear_probe",
-                data_config=SupervisedDataConfig(
-                   data_folder="pulseppg/data/datasets/ppgbp/",
-                   X_annotates=["_ppg_50Hz"],
-                   y_annotate="_sysbp"
-                ),
-            ),
-            Base_EvalConfig(
-                name="PPG-BP | Diastolic BP | Linear Probe",
-                model_folder="Regress",
-                model_file="linear_probe",
-                data_config=SupervisedDataConfig(
-                   data_folder="pulseppg/data/datasets/ppgbp/",
-                   X_annotates=["_ppg_50Hz"],
-                   y_annotate="_diasbp"
-                ),
-            ),
-            Base_EvalConfig(
-                name="PPG-BP | Avg HR | Linear Probe",
-                model_folder="Regress",
-                model_file="linear_probe",
-                data_config=SupervisedDataConfig(
-                   data_folder="pulseppg/data/datasets/ppgbp/",
-                   X_annotates=["_ppg_50Hz"],
-                   y_annotate="_hr"
-                ),
-            ),
-
+        )
+        for wl in WAVELENGTHS
     ]
-) # original config called 25_1_17_relcon_ppgdist100days_c1tp1f128k11s2b12bs64lrp0001_epoch20_100daydata
+)

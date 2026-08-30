@@ -34,21 +34,51 @@ class Model(Base_EvalClass):
         num_train = self.train_data.shape[0]
         num_val = self.val_data.shape[0]
 
-        X_trainval = torch.concatenate((self.train_data, self.val_data))
+        # Save raw training and validation data
+        try:
+            train_data_np = self.train_data.cpu().numpy() if isinstance(self.train_data, torch.Tensor) else self.train_data
+            val_data_np = self.val_data.cpu().numpy() if isinstance(self.val_data, torch.Tensor) else self.val_data
+            
+            np.save(os.path.join(self.run_dir, "raw_train_data.npy"), train_data_np)
+            np.save(os.path.join(self.run_dir, "raw_train_labels.npy"), self.train_labels)
+            np.save(os.path.join(self.run_dir, "raw_val_data.npy"), val_data_np)
+            np.save(os.path.join(self.run_dir, "raw_val_labels.npy"), self.val_labels)
+            
+            printlog(f"Saved raw_train_data.npy: {train_data_np.shape}", self.run_dir)
+            printlog(f"Saved raw_train_labels.npy: {self.train_labels.shape}", self.run_dir)
+            printlog(f"Saved raw_val_data.npy: {val_data_np.shape}", self.run_dir)
+            printlog(f"Saved raw_val_labels.npy: {self.val_labels.shape}", self.run_dir)
+        except Exception as e:
+            printlog(f"Warning: could not save raw data: {e}", self.run_dir)
+
+        # Generate and save separate train embeddings
+        X_train = self._generate_embeddings(self.train_data, batch_size=128)
+        try:
+            np.save(os.path.join(self.run_dir, "embeddings_train.npy"), X_train)
+            printlog(f"Saved embeddings_train.npy: {X_train.shape}", self.run_dir)
+        except Exception as e:
+            printlog(f"Warning: could not save train embeddings: {e}", self.run_dir)
+
+        # Generate and save separate val embeddings
+        X_val = self._generate_embeddings(self.val_data, batch_size=128)
+        try:
+            np.save(os.path.join(self.run_dir, "embeddings_val.npy"), X_val)
+            printlog(f"Saved embeddings_val.npy: {X_val.shape}", self.run_dir)
+        except Exception as e:
+            printlog(f"Warning: could not save val embeddings: {e}", self.run_dir)
+
+        # Concatenate for trainval
+        X_trainval = np.concatenate([X_train, X_val])
         y_trainval = np.concatenate((self.train_labels, self.val_labels))
 
-        X_trainval_temp = []
-        batch_size = 128  # X_trainval.shape[0]
-        self.trained_net.eval()
-        with torch.no_grad():
-            for i in tqdm(range(0, X_trainval.shape[0], batch_size)):
-                X_trainval_temp.append(
-                    self.trained_net(X_trainval[i : i + batch_size].cuda())
-                    .cpu()
-                    .detach()
-                    .numpy()
-                )
-        X_trainval = np.concatenate(X_trainval_temp)
+        # Save combined trainval embeddings and labels for analysis
+        try:
+            np.save(os.path.join(self.run_dir, "embeddings_trainval.npy"), X_trainval)
+            np.save(os.path.join(self.run_dir, "labels_trainval.npy"), y_trainval)
+            printlog(f"Saved embeddings_trainval.npy: {X_trainval.shape}", self.run_dir)
+            printlog(f"Saved labels_trainval.npy: {y_trainval.shape}", self.run_dir)
+        except Exception as e:
+            printlog(f"Warning: could not save trainval data: {e}", self.run_dir)
 
         scaler = StandardScaler()
         X_trainval = scaler.fit_transform(X_trainval)
@@ -74,6 +104,21 @@ class Model(Base_EvalClass):
         state_dict = {"trained_net": self.trained_net.state_dict()}
         torch.save(state_dict, f"{self.run_dir}/checkpoint_best.pkl")
 
+    def _generate_embeddings(self, data: torch.Tensor, batch_size: int = 128) -> np.ndarray:
+        """Generate embeddings for input data using the trained network."""
+        embeddings = []
+        self.trained_net.eval()
+        with torch.no_grad():
+            for i in tqdm(range(0, data.shape[0], batch_size)):
+                batch = data[i : i + batch_size].cuda()
+                embeddings.append(
+                    self.trained_net(batch)
+                    .cpu()
+                    .detach()
+                    .numpy()
+                )
+        return np.concatenate(embeddings)
+
     def load(self):
         state_dict = torch.load(
             f"{self.run_dir}/checkpoint_best.pkl", map_location=self.device
@@ -94,34 +139,66 @@ class Model(Base_EvalClass):
         X_test = torch.Tensor(self.test_data)
         y_test = self.test_labels
 
-        self.trained_net.eval()
-        X_test_temp = []
-        batch_size = 128  # X_test.shape[0]
-        self.trained_net.eval()
-        with torch.no_grad():
-            for i in tqdm(range(0, X_test.shape[0], batch_size)):
-                X_test_temp.append(
-                    self.trained_net(X_test[i : i + batch_size].cuda())
-                    .cpu()
-                    .detach()
-                    .numpy()
-                )
-        X_test = np.concatenate(X_test_temp)
+        # Save raw test data
+        try:
+            test_data_np = self.test_data.cpu().numpy() if isinstance(self.test_data, torch.Tensor) else self.test_data
+            
+            np.save(os.path.join(self.run_dir, "raw_test_data.npy"), test_data_np)
+            np.save(os.path.join(self.run_dir, "raw_test_labels.npy"), self.test_labels)
+            printlog(f"Saved raw_test_data.npy: {test_data_np.shape}", self.run_dir)
+            printlog(f"Saved raw_test_labels.npy: {self.test_labels.shape}", self.run_dir)
+        except Exception as e:
+            printlog(f"Warning: could not save raw test data: {e}", self.run_dir)
 
-        X_test = self.scaler.transform(X_test)
-        y_pred = self.grid_search.predict(X_test)
+        # Generate and save test embeddings
+        X_test_embeddings = self._generate_embeddings(X_test, batch_size=128)
+        try:
+            np.save(os.path.join(self.run_dir, "embeddings_test.npy"), X_test_embeddings)
+            printlog(f"Saved embeddings_test.npy: {X_test_embeddings.shape}", self.run_dir)
+        except Exception as e:
+            printlog(f"Warning: could not save test embeddings: {e}", self.run_dir)
+
+        # Save test labels for analysis
+        try:
+            np.save(os.path.join(self.run_dir, "labels_test.npy"), y_test)
+            printlog(f"Saved labels_test.npy: {y_test.shape}", self.run_dir)
+        except Exception as e:
+            printlog(f"Warning: could not save test labels: {e}", self.run_dir)
+
+        X_test_scaled = self.scaler.transform(X_test_embeddings)
+        y_pred = self.grid_search.predict(X_test_scaled)
 
         if test_idx is not None:
             print(f"Predicted value is {y_pred[test_idx]}")
+
+        unique_labels = []
+        mean_predictions = []
+
+        for label in np.unique(y_test):
+            mask = (y_test == label)
+            mean_pred = y_pred[mask].mean()
+
+            unique_labels.append(label)
+            mean_predictions.append(mean_pred)
+
+        # -------------------------
+        # 3. Compute MAE
+        # -------------------------
+        mae = mean_absolute_error(unique_labels, mean_predictions)
+        print("MAE unique labels:", mae)
+
 
         # Calculate the metrics
         total_mae = mean_absolute_error(y_test, y_pred)
         total_sdae = standard_deviation_of_absolute_error(y_test, y_pred)
         total_mse = mean_squared_error(y_test, y_pred)
         total_sdse = standard_deviation_of_squared_error(y_test, y_pred)
+        # Mean Error (signed) and its standard deviation
+        # ME is the average residual (prediction - truth), showing bias
+        total_me = np.mean(np.array(y_pred) - np.array(y_test))
+        total_sde = np.std(np.array(y_pred) - np.array(y_test))
         total_r2 = r2_score(y_test, y_pred)
         total_mape = mean_absolute_percentage_error(y_test, y_pred)
-        total_poisson = mean_poisson_deviance(y_test, y_pred)
 
         # Build the printout string
         printoutstring = f"MAE/Test={total_mae:5f}\n"
@@ -136,12 +213,17 @@ class Model(Base_EvalClass):
         printoutstring += f"SDSE/Test={total_sdse:5f}\n"
         writer.add_scalar('SDSE/Test', total_sdse, 0)
 
+        printoutstring += f"ME/Test={total_me:5f}\n"
+        writer.add_scalar('ME/Test', total_me, 0)
+
+        printoutstring += f"SDE/Test={total_sde:5f}\n"
+        writer.add_scalar('SDE/Test', total_sde, 0)
+
         printoutstring += f"R2/Test={total_r2:5f}\n"
         writer.add_scalar('R2/Test', total_r2, 0)
 
         printoutstring += f"MAPE/Test={total_mape:5f}\n"
         writer.add_scalar('MAPE/Test', total_mape, 0)
-
         # Log the metrics
         printlog(printoutstring, self.run_dir, dontprint=dontprint)
 
