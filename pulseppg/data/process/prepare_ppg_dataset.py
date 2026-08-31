@@ -1206,7 +1206,7 @@ def main(
     ppgpath: str,
     snr_threshold: float | None = None,
     label_targets: list[str] | None = None,
-    augment: bool = False,
+    augment: bool = True,
     augment_kwargs: dict | None = None,
 ):
     """
@@ -1257,8 +1257,16 @@ def _build_arg_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--augment",
+        dest="augment",
         action="store_true",
-        help="Enable high-glucose augmentation after dataset preparation.",
+        default=True,
+        help="Enable high-glucose augmentation after dataset preparation (default: enabled).",
+    )
+    parser.add_argument(
+        "--no-augment",
+        dest="augment",
+        action="store_false",
+        help="Disable high-glucose augmentation after dataset preparation.",
     )
     return parser
 

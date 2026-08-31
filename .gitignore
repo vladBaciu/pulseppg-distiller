@@ -1,5 +1,6 @@
 pulseppg/experiments/out/*
 .vscode/*
+pulseppg/data/datasets/Hb_PPG_Dataset/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
